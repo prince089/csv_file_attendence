@@ -1,0 +1,37 @@
+import pandas as pd
+df = pd.read_csv('t1.csv', names=['name', 'status', 'timestamp'])
+df = df.iloc[1:]  # remove heading
+total_data = len(df.index)
+df_new = pd.concat([df['name']], axis=1, names=['name'])  # create new dataframe having name
+df_new['duration'] = 0  # add duration column to df_new
+df_new['flag'] = 0
+df_new['A/P'] = 0
+df_new = df_new.drop_duplicates()  # remove duplicate rows
+df_new.reset_index(inplace=True)  # reset indexing after drop row
+joinTime = None
+leftTime = None
+for i in range(total_data):
+    name = df['name'].iloc[i]
+    status = df['status'].iloc[i]
+    if status == 'Joined' or status == 'Joined before':
+        df_new.loc[df_new['name'] == name, 'flag'] = 1     # set flag in new_df 1 if joind
+    if status == 'Left':
+        df_new.loc[df_new['name'] == name, 'flag'] = 0      # set flag in new_df 0 if left
+        leftTime = pd.to_datetime(df['timestamp'].iloc[i])
+        for j in range(i - 1, 0, -1):                      # Iterating loop to find joining time
+            if name == df['name'].iloc[j]:
+                joinTime = pd.to_datetime(df['timestamp'].iloc[j])
+                break
+        diff = pd.to_timedelta(leftTime - joinTime).seconds / 60.0    # find difference btw left and joining time
+        df_new.loc[df_new['name'] == name, 'duration'] = df_new.loc[df_new['name'] == name, 'duration'] + diff
+ #       old_dur = df_new.loc[df_new['name'] == name, 'duration']        # get old duration from datafram
+  #      df_new.loc[df_new['name'] == name, 'duration'] = old_dur + diff  # add new dur to old dur and change value in new_df
+
+for i in range(len(df_new)):
+    if df_new['duration'].iloc[i] <= 5.0 and df_new['flag'].iloc[i] == 0:
+        df_new['A/P'].iloc[i] = 'A'
+    else:
+        df_new['A/P'].iloc[i] = 'P'
+
+print(df_new)
+df_new.to_csv('output_report.csv')
